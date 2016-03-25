@@ -8,4 +8,4 @@ Work in progress + hobby etc..
 
 ## Audio system design tool screenshot
 
-![alt text]()
+![alt text](https://github.com/noisegate/analyzer/blob/master/artwork/audiosystemdesigntool.png)
