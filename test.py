@@ -1,6 +1,8 @@
 import pygame, sys
 from pygame.locals import *
 import serial
+import numpy as np
+from scipy.signal import argrelextrema
 
 ser = serial.Serial(
     port='/dev/ttyACM0',
@@ -33,13 +35,12 @@ class Axes(object):
     def __init__(self, surface):
         self.surface = surface
         
-        self.fontinstance = pygame.font.Font('freesansbold.ttf', 32)
-        
+    def settext(self, text, x, y, size):
+        fontinstance = pygame.font.Font('freesansbold.ttf', size)
 
-    def settext(self, text):
-        renderinstance = self.fontinstance.render(text, False, Colors.blue)
+        renderinstance = fontinstance.render(text, False, Colors.blue)
         rectinstance = renderinstance.get_rect()
-        rectinstance.topleft=(10,10)
+        rectinstance.topleft=(x, y)
         self.surface.blit(renderinstance, rectinstance)
 
     def draw(self):
@@ -66,6 +67,8 @@ class Main(object):
 
         self.axes = Axes(self.Surface)
 
+        self.fourier = np.zeros(512, dtype=np.float)
+
     def loop(self):
         self.Surface.fill(Colors.black)
         self.axes.draw()
@@ -88,7 +91,6 @@ class Main(object):
                 vals = msgstr.split(':')
                 #self.Bassbar.set(float(vals[0]))
                 preval =0
-
                 for i, val in enumerate(vals):
                     if (i==0):
                         #freq
@@ -98,13 +100,15 @@ class Main(object):
                             freq=-1
 
                         #print "frequency: {0}Hz\n".format(freq)
-                        self.axes.settext("freq: {0}Hz".format(freq))
+                        self.axes.settext("freq: {0}Hz".format(freq), 10, 10, 32)
 
 
                     elif (i<512):                   
                     #print val
                         try:
                             y = int(float(val)*480)
+                            self.fourier[i] = float(val)
+
                             pygame.draw.line(   self.Surface, 
                                                 Colors.red, 
                                                 (int(10+Constants.xs*i), 460-preval), 
@@ -112,7 +116,29 @@ class Main(object):
                             preval = y
                         except:
                             pass
+                #http://stackoverflow.com/questions/4624970/finding-local-maxima-minima-with-numpy-in-a-1d-numpy-array
+                extrema = argrelextrema(self.fourier, np.greater)
+                
+                ea=extrema[0]
+                peaks = self.fourier[ea]
+                harm = 0.0
+                fund = 0.0
+                for i in range(len(peaks)):
+                     pygame.draw.circle(self.Surface, Colors.blue, (int(10+Constants.xs*ea[i])+1, 460-int(480.0*peaks[i])), 2,0)    
+                     if i==0:
+                        fund = peaks[i]**2
+                     else:
+                        harm = harm + peaks[i]**2
+                
+                try:
+                    thd =  harm/(fund+harm)*100
+                except:
+                    thd = -1
+                self.axes.settext("THD: {0}%".format(thd), 320, 10, 16)
+
                 pygame.display.update()
+
+                
 
             for event in pygame.event.get():
                 if event.type == QUIT:
@@ -122,6 +148,11 @@ class Main(object):
                 if event.type == KEYDOWN:
                     if event.key == K_ESCAPE:
                         pygame.event.post(pygame.event.Event(QUIT))
+                    if event.key == K_d:
+                        ser.write('d')
+                    if event.key == K_i:
+                        ser.write('D')
+
 
             self.fps.tick(5)
 

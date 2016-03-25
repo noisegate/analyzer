@@ -137,6 +137,7 @@ float ACPU;
 float AMEM;
 float CPU;
 float MEM;
+float myvolume = 1.0;
 
 void loop() {
 
@@ -145,15 +146,18 @@ void loop() {
     
     float vol1=analogRead(15)/1023.0;
     
+    
     waveform1.frequency(vol1*20000);
     
     if (Serial.available()>0){
       inByte = Serial.read();
       if (inByte=='d'){
-
+          myvolume-=0.1;
+          waveform1.amplitude(myvolume);
        }
       if (inByte=='D'){
-
+          myvolume+=0.1;
+          waveform1.amplitude(myvolume);
         //sgtl5000_1.audioProcessorDisable();
       }
       if (inByte=='e'){
