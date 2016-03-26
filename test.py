@@ -51,8 +51,6 @@ class Axes(object):
         for i in range(10):
             pygame.draw.line(self.surface, Colors.darkred, (i*64, 10),(i*64,470),1)
 
-
-
 class Main(object):
 
     def __init__(self):
@@ -126,15 +124,21 @@ class Main(object):
                 for i in range(len(peaks)):
                      pygame.draw.circle(self.Surface, Colors.blue, (int(10+Constants.xs*ea[i])+1, 460-int(480.0*peaks[i])), 2,0)    
                      if i==0:
-                        fund = peaks[i]**2
+                        fund = peaks[i]
                      else:
                         harm = harm + peaks[i]**2
                 
                 try:
-                    thd =  harm/(fund+harm)*100
+                    thd =  np.sqrt(harm)/(fund)*100
                 except:
                     thd = -1
-                self.axes.settext("THD: {0}%".format(thd), 320, 10, 16)
+                self.axes.settext("THD: {0}%".format(thd), 320, 20, 16)
+                try:
+                    self.axes.settext("fund: {0}kHz".format(ea[0]*44.032), 10, 40, 16)
+                except:
+                    pass
+                for i in range(10):
+                    self.axes.settext(" {0}k ".format(i/10.0*20), i*64,470, 8)
 
                 pygame.display.update()
 
