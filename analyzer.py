@@ -74,17 +74,18 @@ class Axes(object):
         pygame.draw.line(self.surface, Colors.darkred, (Const.rW,Const.margin), (Const.rW, Const.rH), 2)
         pygame.draw.line(self.surface, Colors.darkred, (Const.rW, Const.rH), (Const.margin, Const.rH), 2)
         pygame.draw.line(self.surface, Colors.darkred, (Const.margin,Const.rH), (Const.margin, Const.margin), 2)
-        logrange =  [10.0,100.0,1000.0,10000.0,100000.0]
+        logrange =  [1, 10.0,100.0,1000.0,10000.0]
 
         for i in [0,1,2,3]:
-            currX = int(np.log10(logrange[i])*Const.r2W/5.0)+Const.margin
-
+            currX = int(np.log10(logrange[i])*Const.r2W/4.0)+Const.margin
+            self.settext(" {0}Hz ".format(logrange[i+1]), currX, Const.rH, 8)
+ 
             for j in np.arange(logrange[i], logrange[i+1], logrange[i], dtype=np.float):
                 
                 pygame.draw.line(   self.surface, 
                                     Colors.darkerred, 
-                                    (int(1.0*np.log10(j)*Const.r2W/5.0)+Const.margin, Const.margin),
-                                    (int(1.0*np.log10(j)*Const.r2W/5.0)+Const.margin, Const.rH), 
+                                    (int(1.0*np.log10(j)*Const.r2W/4.0)+Const.margin, Const.margin),
+                                    (int(1.0*np.log10(j)*Const.r2W/4.0)+Const.margin, Const.rH), 
                                     1)
 
             pygame.draw.line(   self.surface, 
@@ -135,26 +136,29 @@ class Main(object):
     def plotsweep(self, points):
         #points should be less than 2000
         yscale= Const.r2H/1.0;
-        xscale= Const.r2W/4.3;
-        offset = 0
+        xscale= Const.r2W/4;
+        offset = -Const.halfH
         xoffset=xscale
         self.Surface.fill(Colors.black)
         self.axes.drawlog()
         self.axes.settext("Sweep mode", 10, 10, 32)
 
         for i in range(points):
-            if np.log10(self.waveformx[i])>0:
-                x1 = np.log10(self.waveformx[i])
-            else:
-                x1 = 0
-            if np.log10(self.waveformx[i+1])>0:
-                x2 = np.log10(self.waveformx[i+1])
-            else:
-                x2 = 0
-            pygame.draw.line(   self.Surface,
-                                Colors.red,
-                                (int(10+xscale*x1)-xoffset, int(1.0*Const.rH-yscale*0.5*self.calibrate[i]*self.waveformy[i]+offset)),
-                                (int(10+xscale*x2)-xoffset, int(1.0*Const.rH-yscale*0.5*self.calibrate[i+1]*self.waveformy[i+1]+offset)))
+            if i>2:
+                if np.log10(self.waveformx[i])>0:
+                    x1 = np.log10(self.waveformx[i])
+                else:
+                    x1 = 0
+                if np.log10(self.waveformx[i+1])>0:
+                    x2 = np.log10(self.waveformx[i+1])
+                else:
+                    x2 = 0
+                pygame.draw.line(   self.Surface,
+                                    Colors.red,
+                                 (  int(10+xscale*x1)-xoffset, 
+                                    int(1.0*Const.rH-yscale*0.1*np.log10(self.calibrate[i]*self.waveformy[i])+offset)),
+                                 (  int(10+xscale*x2)-xoffset, 
+                                    int(1.0*Const.rH-yscale*0.1*np.log10(self.calibrate[i+1]*self.waveformy[i+1])+offset)))
         pygame.display.update()
 
     def plotfft(self, bins, withpeaks):
