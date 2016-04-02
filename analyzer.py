@@ -35,20 +35,22 @@ class Const(object):
 
     xs = r2W/512.0
 
+    linewidth = 2	
+
     @classmethod
     def rescale(cls):
         pass
 
 class Colors(object):
     red = pygame.Color(255, 0, 0)
-    darkred = pygame.Color(80,0,0)
-    darkerred = pygame.Color(50,0,0)
+    darkred = pygame.Color(150,0,0)
+    darkerred = pygame.Color(80,0,0)
     blue =  pygame.Color(0, 0, 255)
     green  = pygame.Color(0, 255, 0)
     white = pygame.Color(255, 255, 255)
     black = pygame.Color(0,0,0)
     darkgrey = pygame.Color(100,100,100)
-    background = darkgrey
+    background = black
  
 class Axes(object):
 
@@ -85,13 +87,13 @@ class Axes(object):
             for j in np.arange(logrange[i], logrange[i+1], logrange[i], dtype=np.float):
                 
                 pygame.draw.line(   self.surface, 
-                                    Colors.black, 
+                                    Colors.darkred, 
                                     (int(1.0*np.log10(j)*Const.r2W/4.0)+Const.margin, Const.margin),
                                     (int(1.0*np.log10(j)*Const.r2W/4.0)+Const.margin, Const.rH), 
                                     1)
 
             pygame.draw.line(   self.surface, 
-                                Colors.black, 
+                                Colors.darkred, 
                                 (currX, Const.margin),
                                 (currX,Const.rH), 
                                 1)
@@ -161,7 +163,8 @@ class Main(object):
                                  (  int(10+xscale*x1)-xoffset, 
                                     int(1.0*Const.rH-yscale*0.1*np.log10(self.calibrate[i]*self.waveformy[i])+offset)),
                                  (  int(10+xscale*x2)-xoffset, 
-                                    int(1.0*Const.rH-yscale*0.1*np.log10(self.calibrate[i+1]*self.waveformy[i+1])+offset)))
+                                    int(1.0*Const.rH-yscale*0.1*np.log10(self.calibrate[i+1]*self.waveformy[i+1])+offset)),
+                                    Const.linewidth)
         pygame.display.update()
 
     def plotfft(self, bins, withpeaks):
