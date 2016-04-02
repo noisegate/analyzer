@@ -18,8 +18,8 @@ MODE_SWEEP = 2
 
 class Const(object):
 
-    W = 640
-    H = 480
+    W = 1280#640
+    H = 800#480
 
     margin = 10
 
@@ -47,7 +47,9 @@ class Colors(object):
     green  = pygame.Color(0, 255, 0)
     white = pygame.Color(255, 255, 255)
     black = pygame.Color(0,0,0)
-    
+    darkgrey = pygame.Color(100,100,100)
+    background = darkgrey
+ 
 class Axes(object):
 
     def __init__(self, surface):
@@ -78,18 +80,18 @@ class Axes(object):
 
         for i in [0,1,2,3]:
             currX = int(np.log10(logrange[i])*Const.r2W/4.0)+Const.margin
-            self.settext(" {0}Hz ".format(logrange[i+1]), currX, Const.rH, 8)
+            self.settext(" {0}Hz ".format(logrange[i+1]), currX, Const.rH, 10)
  
             for j in np.arange(logrange[i], logrange[i+1], logrange[i], dtype=np.float):
                 
                 pygame.draw.line(   self.surface, 
-                                    Colors.darkerred, 
+                                    Colors.black, 
                                     (int(1.0*np.log10(j)*Const.r2W/4.0)+Const.margin, Const.margin),
                                     (int(1.0*np.log10(j)*Const.r2W/4.0)+Const.margin, Const.rH), 
                                     1)
 
             pygame.draw.line(   self.surface, 
-                                Colors.darkred, 
+                                Colors.black, 
                                 (currX, Const.margin),
                                 (currX,Const.rH), 
                                 1)
@@ -102,8 +104,9 @@ class Main(object):
     def __init__(self):
         pygame.init()
         self.fps = pygame.time.Clock()
-        self.Surface = pygame.display.set_mode((Const.W, Const.H))
-        pygame.display.set_caption("Teensy Analyser")
+        self.Surface = pygame.display.set_mode((Const.W, Const.H), pygame.FULLSCREEN)
+        #self.Surface = pygame.display.set_mode((Const.W, Const.H))
+	pygame.display.set_caption("Teensy Analyser")
 
         self.red = pygame.Color(255, 0, 0)
         self.blue =  pygame.Color(0, 0, 255)
@@ -139,7 +142,7 @@ class Main(object):
         xscale= Const.r2W/4;
         offset = -Const.halfH
         xoffset=xscale
-        self.Surface.fill(Colors.black)
+        self.Surface.fill(Colors.background)
         self.axes.drawlog()
         self.axes.settext("Sweep mode", 10, 10, 32)
 
@@ -204,9 +207,47 @@ class Main(object):
                 except:
                     pass
                 for i in range(10):
-                    self.axes.settext(" {0}k ".format(i/10.0*20), i*64, Const.rH, 8)
+                    self.axes.settext(" {0}k ".format(i/10.0*20), i*64, Const.rH, 10)
     
             return thd                
+
+    def eventhandler(self):
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if event.type == KEYDOWN:
+                if event.key == K_ESCAPE:
+                    pygame.event.post(pygame.event.Event(QUIT))
+                if event.key == K_d:
+                    ser.write('d')
+                if event.key == K_i:
+                    ser.write('D')
+                if event.key == K_s:
+                    #got to sweep mode
+                    ser.write('s')
+                    self.modeofoperation = MODE_SWEEP
+
+                if event.key == K_f:
+                    #go to fft mode
+                    ser.write('f')
+                    self.modeofoperation = MODE_FFT
+
+
+    def waitforkey(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == KEYDOWN:
+                    if event.key == K_c:
+                        return 'c'
+                    if event.key == K_f:
+                        return 'f' 		
+                    if event.key == K_s:
+                        return 's'
 
     def loop(self):
         self.Surface.fill(Colors.black)
@@ -231,7 +272,7 @@ class Main(object):
                     i=1
             
                 if (i>0):
-                    self.Surface.fill(Colors.black)
+                    self.Surface.fill(Colors.background)
                     self.axes.draw()
                     msgstr = ''.join(msg)
                     vals = msgstr.split(':')
@@ -283,15 +324,18 @@ class Main(object):
                         pass
                     if (i & 10 == 0):
                         self.plotsweep(i)
-            
+                    self.eventhandler()
+ 
                 file = open('sweep.dat', 'w')
                 for i, j in enumerate(self.waveformx):
                     file.write("{0} {1}\r\n".format(j, self.calibrate[i]*self.waveformy[i]))
                 file.close()
                 
-                print "what to do? c=save calibration, f=back to fft mode"
-
-                s = raw_input()
+                #print "what to do? c=save calibration, f=back to fft mode"
+		self.axes.settext("what to do, c=save calibration, f=back to fft mode", 500,400,32)
+	        pygame.display.update()
+                #s = raw_input()
+		s = self.waitforkey()
 
                 if (s=='c'):
                     file = open('cal.dat', 'w')
@@ -308,29 +352,7 @@ class Main(object):
                     ser.write('f')
                     time.sleep(2)
 
-            for event in pygame.event.get():
-                if event.type == QUIT:
-                    pygame.quit()
-                    sys.exit()
-
-                if event.type == KEYDOWN:
-                    if event.key == K_ESCAPE:
-                        pygame.event.post(pygame.event.Event(QUIT))
-                    if event.key == K_d:
-                        ser.write('d')
-                    if event.key == K_i:
-                        ser.write('D')
-                    if event.key == K_s:
-                        #got to sweep mode
-                        ser.write('s')
-                        self.modeofoperation = MODE_SWEEP
-
-                    if event.key == K_f:
-                        #go to fft mode
-                        ser.write('f')
-                        self.modeofoperation = MODE_FFT
-
-
+            self.eventhandler()
             self.fps.tick(5)
 
 if __name__ == '__main__':
