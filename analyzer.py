@@ -233,7 +233,7 @@ class Main(object):
                     #go to fft mode
                     ser.write('f')
                     self.modeofoperation = MODE_FFT
-
+                    return 'f'
 
     def waitforkey(self):
         while True:
@@ -324,15 +324,16 @@ class Main(object):
                         pass
                     if (i & 10 == 0):
                         self.plotsweep(i)
-                    self.eventhandler()
- 
+                    s = self.eventhandler()
+                    if s == 'f':
+                        break 
                 file = open('sweep.dat', 'w')
                 for i, j in enumerate(self.waveformx):
                     file.write("{0} {1}\r\n".format(j, self.calibrate[i]*self.waveformy[i]))
                 file.close()
                 
                 #print "what to do? c=save calibration, f=back to fft mode"
-		self.axes.settext("what to do, c=save calibration, f=back to fft mode", 500,400,32)
+		self.axes.settext("what to do, c=save calibration, f=back to fft mode", 100, 600, 32)
 	        pygame.display.update()
                 #s = raw_input()
 		s = self.waitforkey()
