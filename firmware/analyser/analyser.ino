@@ -22,6 +22,10 @@
 #include <SerialFlash.h>
 #include <ADC.h>
 
+#define MODE_FFT 0
+#define MODE_SCOPE 1
+#define MODE_SWEEP 2
+
 const int myInput = AUDIO_INPUT_LINEIN;
 // const int myInput = AUDIO_INPUT_MIC;
 const int linelevel[] = {31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13};
@@ -54,7 +58,7 @@ AudioConnection          patchCord2(waveform1, 0, i2s2, 0);
 AudioConnection          patchCord3(waveform2, 0, i2s2, 1);
 AudioControlSGTL5000     sgtl5000_1;     //xy=438.88888888888886,1861.111111111111
 // GUItool: end automatically generated code
-*/
+
 // GUItool: begin automatically generated code
 AudioInputI2S            i2s1;           //xy=96.66666793823242,1655.5556259155273
 AudioSynthWaveform       waveform1;      //xy=109.9999771118164,1507.7776927947998
@@ -66,7 +70,20 @@ AudioConnection          patchCord2(waveform1, 0, i2s2, 0);
 AudioConnection          patchCord3(waveform2, 0, i2s2, 1);
 AudioControlSGTL5000     sgtl5000_1;     //xy=418.8888854980469,1735.111083984375
 // GUItool: end automatically generated code
-
+*/
+// GUItool: begin automatically generated code
+AudioInputI2S            i2s1;           //xy=102.66666793823242,198.55564308166504
+AudioSynthWaveform       waveform1;      //xy=115.9999771118164,50.7777099609375
+AudioSynthWaveform       waveform2;      //xy=119.33332867092557,113.00005753835035
+AudioAnalyzeRMS          rms1;           //xy=277,249.0000171661377
+AudioAnalyzeFFT1024      fft1024_1;      //xy=283,193.0000171661377
+AudioOutputI2S           i2s2;           //xy=560.6666259765625,78.5555591583252
+AudioConnection          patchCord1(i2s1, 0, fft1024_1, 0);
+AudioConnection          patchCord2(i2s1, 0, rms1, 0);
+AudioConnection          patchCord3(waveform1, 0, i2s2, 0);
+AudioConnection          patchCord4(waveform2, 0, i2s2, 1);
+AudioControlSGTL5000     sgtl5000_1;     //xy=424.8888854980469,278.1111011505127
+// GUItool: end automatically generated code
 
 
 
@@ -85,7 +102,7 @@ void setup() {
   
   sgtl5000_1.eqSelect(2);//tone control mode 
   
-  sgtl5000_1.eqBands(0.0, 0.0);
+  sgtl5000_1.eqBands(1.0, 1.0);
   sgtl5000_1.lineInLevel(5);//def
   sgtl5000_1.lineOutLevel(13);//def 29=def
   sgtl5000_1.dacVolume(1.0);
@@ -102,7 +119,7 @@ void setup() {
     fftResult[i]=(int16_t)(i*255);
   }
   waveform2.arbitraryWaveform(fftResult, 172.0);
-  waveform1.begin(1.0, 1000, WAVEFORM_SINE);//level, freq, waveform
+  waveform1.begin(0.4, 1000, WAVEFORM_SINE);//level, freq, waveform
   
   //ADC stuff
   pinMode(adcVol, INPUT);
@@ -129,6 +146,8 @@ float sign;
 int inByte;
 int step;
 int level=2;//default 
+int freq=1000;
+int modeofoperation = MODE_FFT;//default
 
 float peakval=0.0;
 
@@ -137,20 +156,28 @@ float ACPU;
 float AMEM;
 float CPU;
 float MEM;
-float myvolume = 1.0;
+float myvolume = 0.4;
 
 void loop() {
-
+  
   // every 10 ms, check for adjustment
   if (chgMsec > 50) { // more regular updates for actual changes seems better.
     
     float vol1=analogRead(15)/1023.0;
     
-    
-    waveform1.frequency(vol1*20000);
+    if (modeofoperation == MODE_FFT)
+      waveform1.frequency(vol1*20000);
     
     if (Serial.available()>0){
       inByte = Serial.read();
+      if (inByte=='f'){
+        modeofoperation = MODE_FFT;
+        goto exitif;
+      }
+      if (inByte=='s'){
+        modeofoperation = MODE_SWEEP;
+        goto exitif;
+      }
       if (inByte=='d'){
           myvolume-=0.1;
           waveform1.amplitude(myvolume);
@@ -176,30 +203,44 @@ void loop() {
       AMEM = AudioMemoryUsage();
 //      CPU = peak1.processorUsage();
 
-      if (fft1024_1.available()){
-        Serial.print(vol1*20000);
+      if (modeofoperation == MODE_SWEEP){
+        freq = Serial.parseInt();
+        waveform1.frequency(freq);
+        Serial.print(freq);
         Serial.print(":");
-        for (int i=0; i<512;i++){
-          float res = fft1024_1.read(i);
-          Serial.print(res);
-          Serial.print(":");
-          
-          //fftResult[i] = (int16_t)(32768.0*res);
+        if(rms1.available()){
+          float rms = rms1.read();
+          Serial.print(rms, 4);
         }
-
-        Serial.println();          
-        //waveform2.arbitraryWaveform(fftResult, 172.0);
+        Serial.println();
       }
+
+      if (modeofoperation == MODE_FFT){
+        
+        if (fft1024_1.available()){
+          Serial.print(vol1*20000);
+          Serial.print(":");
+          for (int i=0; i<512;i++){
+            float res = fft1024_1.read(i);
+            Serial.print(res,4);
+            Serial.print(":");
+            
+            //fftResult[i] = (int16_t)(32768.0*res);
+          }
   
-      
+          Serial.println();          
+          //waveform2.arbitraryWaveform(fftResult, 172.0);
+        }
+      }
+    
      //Serial.print(bass);     //0
 
-    }
-
-
+    }//end if serial
+exitif:
+    
     chgMsec = 0;
     
 
-  }
-}
+  }//ifms
+}//loop
 
