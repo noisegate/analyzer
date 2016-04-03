@@ -4,6 +4,7 @@ import serial
 import numpy as np
 from scipy.signal import argrelextrema
 import time
+import socket
 
 ser = serial.Serial(
     port='/dev/ttyACM0',
@@ -31,6 +32,7 @@ class Const(object):
     halfW = W/2
     halfH = H/2
         
+    ip = socket.gethostbyname(socket.gethostname())
     #scaling
 
     xs = r2W/512.0
@@ -78,6 +80,7 @@ class Axes(object):
         pygame.draw.line(self.surface, Colors.darkred, (Const.rW,Const.margin), (Const.rW, Const.rH), 2)
         pygame.draw.line(self.surface, Colors.darkred, (Const.rW, Const.rH), (Const.margin, Const.rH), 2)
         pygame.draw.line(self.surface, Colors.darkred, (Const.margin,Const.rH), (Const.margin, Const.margin), 2)
+        self.settext('ip {0}'.format(Const.ip),1100,10,18)
         logrange =  [1, 10.0,100.0,1000.0,10000.0]
 
         for i in [0,1,2,3]:
@@ -262,7 +265,7 @@ class Main(object):
         print "Initializing..."
 
         time.sleep(5)
-
+        
         while True:
             
             i=0
@@ -292,7 +295,12 @@ class Main(object):
 
                             #print "frequency: {0}Hz\n".format(freq)
                             self.axes.settext("freq: {0}Hz".format(freq), 10, 10, 32)
-    
+                        elif (i==1):
+                            try:
+                                vol = float(val)
+                            except:
+                                vol = -1
+                            self.axes.settext("level: {0}".format(vol), 300,10,32)    
                         #the last 512 bytes are FFT data
                         elif (i<512):                   
                         #print val
@@ -301,10 +309,10 @@ class Main(object):
                             except:
                                 self.fourier[i] = 0.0
                 
-                    thd = self.plotfft(512, True)
+                    thd = self.plotfft(512, False)
 
                     pygame.display.update()
-
+            
             if (self.modeofoperation == MODE_SWEEP):
                 N=1024
                 for i, fr in enumerate(np.logspace(1.3, 4.3, N)):
