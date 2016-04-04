@@ -220,6 +220,8 @@ void loop() {
         if (fft1024_1.available()){
           Serial.print(vol1*20000);
           Serial.print(":");
+          Serial.print(myvolume);
+          Serial.print(":");
           for (int i=0; i<512;i++){
             float res = fft1024_1.read(i);
             Serial.print(res,4);
