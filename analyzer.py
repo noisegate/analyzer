@@ -21,8 +21,10 @@ MODE_RMS = 3
 
 class Const(object):
 
-    W = 1280#640
-    H = 800#480
+    #W = 1280#640
+    #H = 800#480
+    W = 1366
+    H = 768
 
     margin = 10
 
@@ -291,11 +293,16 @@ class Main(object):
                     vals = msgstr.split(':')
                     for i, val in enumerate(vals):
                         try:
-                            rms = float(val)
+                            if (i==0):
+                                freq = float(val)
+                            if (i==1):
+                                rms = float(val)
                         except:
                             rms = -1
-                    self.axes.settext("RMS:{0}".format(val), 100,100,32)
-                    
+                            freq=-1
+                    self.axes.settext("RMS @ {0}Hz = {1}V".format(freq, rms), 100,100,32)
+                pygame.display.update()
+
             if (self.modeofoperation == MODE_THD):
                 pass
 
