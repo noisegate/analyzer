@@ -16,6 +16,8 @@ ser = serial.Serial(
 
 MODE_FFT = 0
 MODE_SWEEP = 2
+MODE_THD = 4
+MODE_RMS = 3
 
 class Const(object):
 
@@ -235,6 +237,10 @@ class Main(object):
                     ser.write('s')
                     self.modeofoperation = MODE_SWEEP
 
+                if event.key == K_r:
+                    ser.write('r')
+                    self.modeofoperation = MODE_RMS
+
                 if event.key == K_f:
                     #go to fft mode
                     ser.write('f')
@@ -269,6 +275,31 @@ class Main(object):
         while True:
             
             i=0
+
+            if (self.modeofoperation == MODE_RMS):
+                self.Surface.fill(Colors.background)
+                ser.write('?')
+                msg =[]
+                while ser.inWaiting() > 0:
+                    dummy = ser.read(1)
+                    msg.append(dummy)
+                    i=1
+
+                if (i>0):
+                    self.Surface.fill(Colors.background)
+                    msgstr = ''.join(msg)
+                    vals = msgstr.split(':')
+                    for i, val in enumerate(vals):
+                        try:
+                            rms = float(val)
+                        except:
+                            rms = -1
+                    self.axes.settext("RMS:{0}".format(val), 100,100,32)
+                    
+            if (self.modeofoperation == MODE_THD):
+                pass
+
+
             if (self.modeofoperation == MODE_FFT):
                 ser.write('?');#get the fourier data
                 msg=[]
@@ -315,6 +346,7 @@ class Main(object):
             
             if (self.modeofoperation == MODE_SWEEP):
                 N=1024
+                s=''
                 for i, fr in enumerate(np.logspace(1.3, 4.3, N)):
                     ser.write("?{0}".format(int(fr)))
                     msg=[]
@@ -343,26 +375,25 @@ class Main(object):
                     file.write("{0} {1}\r\n".format(j, self.calibrate[i]*self.waveformy[i]))
                 file.close()
                 
-                #print "what to do? c=save calibration, f=back to fft mode"
-		self.axes.settext("what to do, c=save calibration, f=back to fft mode", 100, 600, 32)
-	        pygame.display.update()
-                #s = raw_input()
-		s = self.waitforkey()
+                if s=='':
+                    self.axes.settext("select: s=sweep, c=save calibration, f=back to fft mode", 100, 600, 32)
+	            pygame.display.update()
+		    s = self.waitforkey()
 
-                if (s=='c'):
-                    file = open('cal.dat', 'w')
-                    for i, j  in enumerate(self.waveformx):
-                        if self.waveformy[i]!=0.0:
-                            self.calibrate[i] = 1.0/self.waveformy[i]
-                        else:
-                            self.calibrate[i]=1.0
-                        file.write("{0} {1}\r\n".format(j, self.calibrate[i]))
-                    file.close()
+                    if (s=='c'):
+                        file = open('cal.dat', 'w')
+                        for i, j  in enumerate(self.waveformx):
+                            if self.waveformy[i]!=0.0:
+                                self.calibrate[i] = 1.0/self.waveformy[i]
+                            else:
+                                self.calibrate[i]=1.0
+                            file.write("{0} {1}\r\n".format(j, self.calibrate[i]))
+                        file.close()
  
-                if (s=='f'):
-                    self.modeofoperation = MODE_FFT
-                    ser.write('f')
-                    time.sleep(2)
+                    if (s=='f'):
+                        self.modeofoperation = MODE_FFT
+                        ser.write('f')
+                        time.sleep(2)
 
             self.eventhandler()
             self.fps.tick(5)
