@@ -1,6 +1,7 @@
 import pygame, sys
+import getopt
 from pygame.locals import *
-import serial
+import serial   
 import numpy as np
 from scipy.signal import argrelextrema
 import time
@@ -23,8 +24,12 @@ class Const(object):
 
     #W = 1280#640
     #H = 800#480
-    W = 1366
-    H = 768
+    #W = 1366
+    #H = 768
+    W = 640
+    H = 480
+
+    FULLSCREEN = True
 
     margin = 10
 
@@ -36,9 +41,9 @@ class Const(object):
     halfW = W/2
     halfH = H/2
         
-    ip = socket.gethostbyname(socket.gethostname())
+    #ip = socket.gethostbyname(socket.gethostname())
     #scaling
-
+    ip = "NIY"
     xs = r2W/512.0
 
     linewidth = 2	
@@ -46,6 +51,27 @@ class Const(object):
     @classmethod
     def rescale(cls):
         pass
+
+    @classmethod
+    def raspi(cls):
+        cls.W = 1280
+        cls.H = 800
+
+    @classmethod
+    def desktop(cls):
+        cls.W = 1280
+        cls.H = 1024
+
+    @classmethod
+    def laptop(cls):
+        cls.W = 1366
+        cls.H = 768
+
+    @classmethod
+    def window(cls):
+        cls.W = 640
+        cls.H = 480
+        cls.FULLSCREEN = False
 
 class Colors(object):
     red = pygame.Color(255, 0, 0)
@@ -57,8 +83,35 @@ class Colors(object):
     black = pygame.Color(0,0,0)
     darkgrey = pygame.Color(100,100,100)
     background = black
- 
-class Axes(object):
+
+class Handleargs(object):
+    #http://www.tutorialspoint.com/python/python_command_line_arguments.htm
+    def __init__(self, argv):
+        self.argv = argv
+        self.device = ""
+
+    def process(self):
+        try:
+            opts, args = getopt.getopt(self.argv,"hd:",["ifile=","ofile="])
+        except getopt.GetoptError:
+             print 'analyzer.py -d <device> '
+             sys.exit(2)
+        for opt, arg in opts:
+            if opt == '-h':
+                print "analyzer.py -d <device>; device = raspi, laptop, desktop"
+                sys.exit()
+            if opt == '-d':
+                self.device = arg
+                if arg == 'raspi':
+                    Const.raspi()
+                if arg == 'desktop':
+                    Const.desktop()
+                if arg == 'laptop':
+                    Const.laptop()
+                if arg == 'window':
+                    Const.window()
+
+class  Axes(object):
 
     def __init__(self, surface):
         self.surface = surface
@@ -113,8 +166,10 @@ class Main(object):
     def __init__(self):
         pygame.init()
         self.fps = pygame.time.Clock()
-        self.Surface = pygame.display.set_mode((Const.W, Const.H), pygame.FULLSCREEN)
-        #self.Surface = pygame.display.set_mode((Const.W, Const.H))
+        if (Const.FULLSCREEN):
+            self.Surface = pygame.display.set_mode((Const.W, Const.H), pygame.FULLSCREEN)
+        else:
+            self.Surface = pygame.display.set_mode((Const.W, Const.H))
 	pygame.display.set_caption("Teensy Analyser")
 
         self.red = pygame.Color(255, 0, 0)
@@ -221,6 +276,131 @@ class Main(object):
     
             return thd                
 
+    def rms(self):
+        i=0
+        self.Surface.fill(Colors.background)
+        ser.write('?')
+        msg =[]
+        while ser.inWaiting() > 0:
+            dummy = ser.read(1)
+            msg.append(dummy)
+            i=1
+        
+        if (i>0):
+            self.Surface.fill(Colors.background)
+            msgstr = ''.join(msg)
+            vals = msgstr.split(':')
+            for i, val in enumerate(vals):
+                try:
+                    if (i==0):
+                        freq = float(val)
+                    if (i==1):
+                        rms = float(val)
+                except:
+                    rms = -1
+                    freq=-1
+            self.axes.settext("RMS @ {0:04d}Hz = {1:.2f}V".format(int(freq), rms), 100,100,32)
+        pygame.display.update()
+
+    def fft(self):
+        i=0
+        ser.write('?');#get the fourier data
+        msg=[]
+        while ser.inWaiting() > 0:
+            dummy = ser.read(1)
+            msg.append(dummy)
+            i=1
+        
+        if (i>0):
+            self.Surface.fill(Colors.background)
+            self.axes.draw()
+            msgstr = ''.join(msg)
+            vals = msgstr.split(':')
+            #self.Bassbar.set(float(vals[0]))
+            preval =0
+            for i, val in enumerate(vals):
+                #the first bytes are header with parameter info
+                if (i==0):
+                    #freq
+                    try:
+                        freq = float(val)
+                    except:
+                        freq=-1
+    
+                    #print "frequency: {0}Hz\n".format(freq)
+                    self.axes.settext("freq: {0}Hz".format(freq), 10, 10, 32)
+                elif (i==1):
+                    try:
+                        vol = float(val)
+                    except:
+                        vol = -1
+                    self.axes.settext("level: {0}".format(vol), 300,10,32)    
+                #the last 512 bytes are FFT data
+                elif (i<512):                   
+                #print val
+                    try:
+                        self.fourier[i] = float(val)
+                    except:
+                        self.fourier[i] = 0.0
+        
+            thd = self.plotfft(512, False)
+    
+            pygame.display.update()
+
+    def sweep(self): 
+        N=1024
+        s=''
+        for i, fr in enumerate(np.logspace(1.3, 4.3, N)):
+            ser.write("?{0}".format(int(fr)))
+            msg=[]
+            #print "{0} % done".format(1.0*i/N)
+            time.sleep(.05)
+            while ser.inWaiting()>0:
+                dummy = ser.read(1)
+                msg.append(dummy)
+            
+            msgstr = ''.join(msg)
+            vals = msgstr.split(':')
+            try:
+                f = int(vals[0])
+                a = float(vals[1])
+                self.waveformx[i] = f
+                self.waveformy[i] = a
+            except:
+                pass
+            if (i & 10 == 0):
+                self.plotsweep(i)
+            s = self.eventhandler()
+            if s == 'f':
+                break
+            if s == 'r':
+                break
+
+            if s=='':
+               file = open('sweep.dat', 'w')
+               for i, j in enumerate(self.waveformx):
+                   file.write("{0} {1}\r\n".format(j, self.calibrate[i]*self.waveformy[i]))
+               file.close()
+               self.axes.settext("select: s=sweep, c=save calibration, f=back to fft mode", 100, 600, 32)
+	       pygame.display.update()
+	       s = self.waitforkey()
+
+               if (s=='c'):
+                   file = open('cal.dat', 'w')
+                   for i, j  in enumerate(self.waveformx):
+                       if self.waveformy[i]!=0.0:
+                           self.calibrate[i] = 1.0/self.waveformy[i]
+                       else:
+                           self.calibrate[i]=1.0
+                       file.write("{0} {1}\r\n".format(j, self.calibrate[i]))
+                   file.close()
+ 
+               if (s=='f'):
+                   self.modeofoperation = MODE_FFT
+                   ser.write('f')
+                   time.sleep(2)
+
+
     def eventhandler(self):
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -242,6 +422,7 @@ class Main(object):
                 if event.key == K_r:
                     ser.write('r')
                     self.modeofoperation = MODE_RMS
+                    return 'r'
 
                 if event.key == K_f:
                     #go to fft mode
@@ -266,6 +447,7 @@ class Main(object):
     def loop(self):
         self.Surface.fill(Colors.black)
         self.axes.draw()
+        self.axes.settext("Initializing...", 10,10,32)
         pygame.display.update()
 
         ser.write('f')#make sure we are in default FFT modus
@@ -276,135 +458,23 @@ class Main(object):
         
         while True:
             
-            i=0
-
             if (self.modeofoperation == MODE_RMS):
-                self.Surface.fill(Colors.background)
-                ser.write('?')
-                msg =[]
-                while ser.inWaiting() > 0:
-                    dummy = ser.read(1)
-                    msg.append(dummy)
-                    i=1
-
-                if (i>0):
-                    self.Surface.fill(Colors.background)
-                    msgstr = ''.join(msg)
-                    vals = msgstr.split(':')
-                    for i, val in enumerate(vals):
-                        try:
-                            if (i==0):
-                                freq = float(val)
-                            if (i==1):
-                                rms = float(val)
-                        except:
-                            rms = -1
-                            freq=-1
-                    self.axes.settext("RMS @ {0}Hz = {1}V".format(freq, rms), 100,100,32)
-                pygame.display.update()
+                self.rms()
 
             if (self.modeofoperation == MODE_THD):
                 pass
 
-
             if (self.modeofoperation == MODE_FFT):
-                ser.write('?');#get the fourier data
-                msg=[]
-                while ser.inWaiting() > 0:
-                    dummy = ser.read(1)
-                    msg.append(dummy)
-                    i=1
-            
-                if (i>0):
-                    self.Surface.fill(Colors.background)
-                    self.axes.draw()
-                    msgstr = ''.join(msg)
-                    vals = msgstr.split(':')
-                    #self.Bassbar.set(float(vals[0]))
-                    preval =0
-                    for i, val in enumerate(vals):
-                        #the first bytes are header with parameter info
-                        if (i==0):
-                            #freq
-                            try:
-                                freq = float(val)
-                            except:
-                                freq=-1
-
-                            #print "frequency: {0}Hz\n".format(freq)
-                            self.axes.settext("freq: {0}Hz".format(freq), 10, 10, 32)
-                        elif (i==1):
-                            try:
-                                vol = float(val)
-                            except:
-                                vol = -1
-                            self.axes.settext("level: {0}".format(vol), 300,10,32)    
-                        #the last 512 bytes are FFT data
-                        elif (i<512):                   
-                        #print val
-                            try:
-                                self.fourier[i] = float(val)
-                            except:
-                                self.fourier[i] = 0.0
-                
-                    thd = self.plotfft(512, False)
-
-                    pygame.display.update()
-            
+                self.fft()
+           
             if (self.modeofoperation == MODE_SWEEP):
-                N=1024
-                s=''
-                for i, fr in enumerate(np.logspace(1.3, 4.3, N)):
-                    ser.write("?{0}".format(int(fr)))
-                    msg=[]
-                    #print "{0} % done".format(1.0*i/N)
-                    time.sleep(.05)
-                    while ser.inWaiting()>0:
-                        dummy = ser.read(1)
-                        msg.append(dummy)
-                    
-                    msgstr = ''.join(msg)
-                    vals = msgstr.split(':')
-                    try:
-                        f = int(vals[0])
-                        a = float(vals[1])
-                        self.waveformx[i] = f
-                        self.waveformy[i] = a
-                    except:
-                        pass
-                    if (i & 10 == 0):
-                        self.plotsweep(i)
-                    s = self.eventhandler()
-                    if s == 'f':
-                        break 
-                file = open('sweep.dat', 'w')
-                for i, j in enumerate(self.waveformx):
-                    file.write("{0} {1}\r\n".format(j, self.calibrate[i]*self.waveformy[i]))
-                file.close()
-                
-                if s=='':
-                    self.axes.settext("select: s=sweep, c=save calibration, f=back to fft mode", 100, 600, 32)
-	            pygame.display.update()
-		    s = self.waitforkey()
-
-                    if (s=='c'):
-                        file = open('cal.dat', 'w')
-                        for i, j  in enumerate(self.waveformx):
-                            if self.waveformy[i]!=0.0:
-                                self.calibrate[i] = 1.0/self.waveformy[i]
-                            else:
-                                self.calibrate[i]=1.0
-                            file.write("{0} {1}\r\n".format(j, self.calibrate[i]))
-                        file.close()
- 
-                    if (s=='f'):
-                        self.modeofoperation = MODE_FFT
-                        ser.write('f')
-                        time.sleep(2)
+                self.sweep()
 
             self.eventhandler()
             self.fps.tick(5)
 
 if __name__ == '__main__':
+    arghandler = Handleargs(sys.argv[1:])
+    arghandler.process()
     instance = Main()
     instance.loop()
