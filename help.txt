@@ -1,0 +1,21 @@
+analyzer command line tool help 
+
+Usage: python analyzer.py -d <device>
+
+where device is one of the following:
+
+1) window
+
+Opens a 640x480 window.
+
+2) laptop
+
+Opens fullscreen with a surface of 1366x768
+
+3) desktop
+
+Opens fullscreen with a surface of 1280x1024
+
+4) raspi
+
+Opens fullscreen with a surface of 1280x800
