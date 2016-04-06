@@ -25,6 +25,8 @@
 #define MODE_FFT 0
 #define MODE_SCOPE 1
 #define MODE_SWEEP 2
+#define MODE_RMS 3
+
 
 const int myInput = AUDIO_INPUT_LINEIN;
 // const int myInput = AUDIO_INPUT_MIC;
@@ -174,6 +176,9 @@ void loop() {
         modeofoperation = MODE_FFT;
         goto exitif;
       }
+      if (inByte=='r'){
+        modeofoperation = MODE_RMS;
+      }
       if (inByte=='s'){
         modeofoperation = MODE_SWEEP;
         goto exitif;
@@ -203,6 +208,17 @@ void loop() {
       AMEM = AudioMemoryUsage();
 //      CPU = peak1.processorUsage();
 
+      if (modeofoperation == MODE_RMS){
+        waveform1.frequency(vol1*20000);
+        Serial.print(vol1*20000, 4);
+        Serial.print(":");
+        if(rms1.available()){
+          float rms = rms1.read();
+          Serial.print(rms,4);
+        }
+        Serial.println();
+      }
+
       if (modeofoperation == MODE_SWEEP){
         freq = Serial.parseInt();
         waveform1.frequency(freq);
@@ -219,6 +235,8 @@ void loop() {
         
         if (fft1024_1.available()){
           Serial.print(vol1*20000);
+          Serial.print(":");
+          Serial.print(myvolume);
           Serial.print(":");
           for (int i=0; i<512;i++){
             float res = fft1024_1.read(i);

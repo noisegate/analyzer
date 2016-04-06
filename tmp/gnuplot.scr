@@ -1,0 +1,32 @@
+set logscale x 10
+                set logscale y 10
+                set grid mxtics mytics xtics ytics lt 1 lc rgb 'gray70', lt 1 lc rgb 'gray90'
+                set mxtics 10
+                set mytics 5
+
+                set boxwidth 8
+
+                set title "frequency sweep" 
+                set xlabel "freq[Hz]"
+                set ylabel "amp[rel.]"
+
+                set xrange [10:50000]
+                set yrange [0.001: 1]
+                
+                plot "./tmp/sweep.dat" using 1:2 smooth csplines title "./tmp/sweep.dat" with lines,
+
+                set size 1.0, 1.0
+                #set terminal postscript portrait enhanced mono dashed lw 1 "Helvetica" 14 
+                #set terminal pngcairo  transparent enhanced font "arial,10" fontscale 1.0 size 500,500; set zeroaxis;
+                #set terminal pngcairo  enhanced font "arial,20" fontscale 1.0 size 1500,1500; 
+                #set output "my-plot.png"
+                #set terminal pdf
+                #set output "my-plot.pdf"
+                set term svg enhanced font "arial,20" mouse size 1500,1200
+                set output "./tmp/my-plot.svg"
+                replot
+                set terminal x11
+                set size 1,1
+
+                #pause -1
+            
