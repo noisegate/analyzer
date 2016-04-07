@@ -159,6 +159,8 @@ float AMEM;
 float CPU;
 float MEM;
 float myvolume = 0.4;
+float oldvol =0.0;
+float currfreq = 0.0;
 
 void loop() {
   
@@ -166,15 +168,25 @@ void loop() {
   if (chgMsec > 50) { // more regular updates for actual changes seems better.
     
     float vol1=analogRead(15)/1023.0;
-    
-    if (modeofoperation == MODE_FFT)
-      waveform1.frequency(vol1*20000);
+
+    if (1/*modeofoperation == MODE_FFT*/)
+      if (vol1!=oldvol){
+        currfreq = vol1*20000;
+        waveform1.frequency(currfreq);
+        oldvol = vol1;
+      }
     
     if (Serial.available()>0){
       inByte = Serial.read();
       if (inByte=='f'){
         modeofoperation = MODE_FFT;
         goto exitif;
+      }
+      if (inByte=='+'){
+        currfreq +=1.0;
+      }
+      if (inByte=='-'){
+        currfreq -=1.0;
       }
       if (inByte=='r'){
         modeofoperation = MODE_RMS;
@@ -209,8 +221,8 @@ void loop() {
 //      CPU = peak1.processorUsage();
 
       if (modeofoperation == MODE_RMS){
-        waveform1.frequency(vol1*20000);
-        Serial.print(vol1*20000, 4);
+        waveform1.frequency(currfreq);
+        Serial.print(currfreq, 4);
         Serial.print(":");
         if(rms1.available()){
           float rms = rms1.read();

@@ -8,6 +8,9 @@ import time
 import socket
 import subprocess
 
+#keymap
+#http://www.pygame.org/docs/ref/key.html
+
 ser = serial.Serial(
     port='/dev/ttyACM0',
     baudrate=38400,#9600,
@@ -19,6 +22,7 @@ ser = serial.Serial(
 MODE_FFT = 0
 MODE_SWEEP = 2
 MODE_THD = 4
+MODE_HARMONICS = 5 
 MODE_RMS = 3
 
 class Gnuplotter(object):
@@ -338,6 +342,32 @@ class Main(object):
                                     Const.linewidth)
         pygame.display.update()
 
+    def freqbin(self, mybin):
+        return 43*mybin
+
+    def plotharmonics(self):
+        #http://stackoverflow.com/questions/4624970/finding-local-maxima-minima-with-numpy-in-a-1d-numpy-array
+        extrema = argrelextrema(self.fourier, np.greater)
+
+        ea = extrema[0]
+
+        peaks = self.fourier[ea]
+
+        harm = 0.0
+        fund = 0.0
+
+        peaks.sort()
+
+        self.axes.clear()
+        self.axes.frame()
+        self.axes.settext("harmonix 1 {0}, {1}".format(-1, peaks[1]), Const.halfW, Const.halfH, 32, True)
+        self.axes.settext("harmonix 2 {0}, {1}".format(-1, peaks[2]), Const.halfW, Const.halfH+40, 32, True)
+        self.axes.settext("harmonix 3 {0}, {1}".format(-1, peaks[3]), Const.halfW, Const.halfH+80, 32, True)
+        pygame.display.update()
+
+
+        return -1
+
     def plotfft(self, bins, withpeaks):
         yscale = self.scaleme()
         offset = -10
@@ -416,7 +446,7 @@ class Main(object):
             self.axes.settext("RMS @ {0:04d}Hz = {1:.3f}V".format(int(freq), rms), Const.halfW ,Const.halfH, 32, True)
         pygame.display.update()
 
-    def fft(self):
+    def fft(self, plottoo):
         i=0
         ser.write('?');#get the fourier data
         msg=[]
@@ -457,7 +487,10 @@ class Main(object):
                     except:
                         self.fourier[i] = 0.0
         
-            thd = self.plotfft(512, False)
+            if plottoo:
+                thd = self.plotfft(512, False)
+            else:
+                thd = self.plotharmonics()
     
             pygame.display.update()
 
@@ -543,6 +576,16 @@ class Main(object):
                     ser.write('r')
                     self.modeofoperation = MODE_RMS
                     return 'r'
+                if event.key == K_t:
+                    ser.write('f')
+                    self.modeofoperation = MODE_HARMONICS
+                    return 't'
+                if event.key == K_EQUALS:
+                    ser.write('+')
+                    return '+'
+                if event.key == K_MINUS:
+                    ser.write('-')
+                    return '-'
 
                 if event.key == K_f:
                     #go to fft mode
@@ -572,8 +615,11 @@ class Main(object):
                 pass
 
             if (self.modeofoperation == MODE_FFT):
-                self.fft()
+                self.fft(True)
            
+            if (self.modeofoperation == MODE_HARMONICS):
+                self.fft(False)
+
             if (self.modeofoperation == MODE_SWEEP):
                 self.sweep()
 
