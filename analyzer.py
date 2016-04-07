@@ -160,12 +160,15 @@ class Handleargs(object):
                 self.device = arg
                 if arg == 'raspi':
                     Const.raspi()
-                if arg == 'desktop':
+                elif arg == 'desktop':
                     Const.desktop()
-                if arg == 'laptop':
+                elif arg == 'laptop':
                     Const.laptop()
-                if arg == 'window':
+                elif arg == 'window':
                     Const.window()
+                else:
+                    print 'unknown option: "{0}"'.format(arg)
+                    sys.exit(1)
 
 class Axes(object):
 
@@ -184,6 +187,9 @@ class Axes(object):
         else:
             rectinstance.topleft=(x, y)
         self.surface.blit(renderinstance, rectinstance)
+
+    def clear(self):
+        self.surface.fill(Colors.background)
 
     def frame(self):
         pygame.draw.line(self.surface, Colors.darkred, (Const.margin,Const.margin), (Const.rW,Const.margin), 2)
@@ -220,8 +226,6 @@ class Axes(object):
                                 (currX,Const.rH), 
                                 1)
 
-
-
 class Stats(object):
 
     def __init__(self, wav):
@@ -246,6 +250,13 @@ class Stats(object):
             return np.multiply(vector1, vector2)
         else:
             return -1
+
+class Plots(object):
+
+    def __init__(self):
+        pass
+
+
 
 class Main(object):
 
@@ -292,9 +303,8 @@ class Main(object):
         #points should be less than 2000
         yscale= Const.r2H/1.0;
         xscale= Const.r2W/4;
-        offset = -Const.halfH
         xoffset=xscale
-        self.Surface.fill(Colors.background)
+        self.axes.clear()
         self.axes.drawlog()
         self.axes.settext("Sweep mode", 10, 10, 32, False)
 
@@ -307,6 +317,7 @@ class Main(object):
             fullscale = 0.1
             min = 0.0
             scaleoffset = 0.0
+            offset = -Const.halfH
 
         for i in range(points):
             if i>2:
@@ -379,7 +390,7 @@ class Main(object):
 
     def rms(self):
         i=0
-        self.Surface.fill(Colors.background)
+        self.axes.clear()#Surface.fill(Colors.background)
         self.axes.frame()
         ser.write('?')
         msg =[]
@@ -389,7 +400,7 @@ class Main(object):
             i=1
         
         if (i>0):
-            self.Surface.fill(Colors.background)
+            self.axes.clear()#Saurface.fill(Colors.background)
             self.axes.frame()
             msgstr = ''.join(msg)
             vals = msgstr.split(':')
@@ -402,7 +413,7 @@ class Main(object):
                 except:
                     rms = -1
                     freq=-1
-            self.axes.settext("RMS @ {0:04d}Hz = {1:.2f}V".format(int(freq), rms), Const.halfW ,Const.halfH, 32, True)
+            self.axes.settext("RMS @ {0:04d}Hz = {1:.3f}V".format(int(freq), rms), Const.halfW ,Const.halfH, 32, True)
         pygame.display.update()
 
     def fft(self):
@@ -415,7 +426,7 @@ class Main(object):
             i=1
         
         if (i>0):
-            self.Surface.fill(Colors.background)
+            self.axes.clear()
             self.axes.draw()
             msgstr = ''.join(msg)
             vals = msgstr.split(':')
@@ -468,7 +479,7 @@ class Main(object):
                 f = int(vals[0])
                 a = float(vals[1])
                 self.waveformx[i] = f
-                self.waveformy[i] = a
+                self.waveformy[i] += a
             except:
                 pass
             if (i & 10 == 0):
@@ -486,7 +497,8 @@ class Main(object):
         if s=='':
             file = open('./tmp/sweep.dat', 'w')
             for i, j in enumerate(self.waveformx):
-               file.write("{0} {1}\r\n".format(j, self.calibrate[i]*self.waveformy[i]))
+                if (i>0):
+                   file.write("{0} {1}\r\n".format(j, self.calibrate[i]*self.waveformy[i]))
             file.close()
             self.axes.settext("select: s=sweep, c=save calibration, f=back to fft mode", Const.halfW, Const.r2H, 16, True)
             pygame.display.update()
@@ -503,6 +515,8 @@ class Main(object):
                 else:
                     self.calibrate[i]=1.0
                 file.write("{0} {1}\r\n".format(j, self.calibrate[i]))
+            self.axes.settext("wrote new calibartion file", Const.halfW, int(0.9*Const.r2H), 16, True)
+            pygame.display.update()
             file.close()
 
     def eventhandler(self):
@@ -522,7 +536,9 @@ class Main(object):
                     #got to sweep mode
                     ser.write('s')
                     self.modeofoperation = MODE_SWEEP
-
+                    return 's'
+                if event.key == K_c:
+                    return 'c'
                 if event.key == K_r:
                     ser.write('r')
                     self.modeofoperation = MODE_RMS
@@ -536,7 +552,7 @@ class Main(object):
         return ''
 
     def loop(self):
-        self.Surface.fill(Colors.black)
+        self.axes.clear()
         self.axes.draw()
         self.axes.settext("Initializing...", 10,10,32, False)
         pygame.display.update()

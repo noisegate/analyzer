@@ -104,7 +104,7 @@ void setup() {
   
   sgtl5000_1.eqSelect(2);//tone control mode 
   
-  sgtl5000_1.eqBands(1.0, 1.0);
+  sgtl5000_1.eqBands(0.0, 0.0);
   sgtl5000_1.lineInLevel(5);//def
   sgtl5000_1.lineOutLevel(13);//def 29=def
   sgtl5000_1.dacVolume(1.0);
@@ -224,10 +224,13 @@ void loop() {
         waveform1.frequency(freq);
         Serial.print(freq);
         Serial.print(":");
-        if(rms1.available()){
-          float rms = rms1.read();
-          Serial.print(rms, 4);
+        float rms = 0.0;
+        for (int count=0; count<10; count++){
+          if(rms1.available()){
+            rms += rms1.read();
+          }
         }
+        Serial.print(rms/10.0, 4);  
         Serial.println();
       }
 
