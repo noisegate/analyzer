@@ -238,6 +238,15 @@ class Stats(object):
         self.min = np.nanmin(self.wav)
         self.std = np.nanstd(self.wav)
 
+    @classmethod
+    def bookkeepproduct(self, vector1, vector2):
+        n1 = len(vector1)
+        n2 = len(vector2)
+        if n1==n2:
+            return np.multiply(vector1, vector2)
+        else:
+            return -1
+
 class Main(object):
 
     def __init__(self):
@@ -260,7 +269,9 @@ class Main(object):
         self.waveformy = np.zeros(1024, dtype=np.float)
         self.calibrate = np.ones(1024, dtype=np.float)
         self.modeofoperation = MODE_FFT
-        
+       
+        self.stats = None
+
         self.loadcalibration()
 
 
@@ -288,7 +299,14 @@ class Main(object):
         self.axes.settext("Sweep mode", 10, 10, 32, False)
 
         if scale:
-            pass
+            fullscale = 1.0/(self.stats.max-self.stats.min)
+            scaleoffset = -self.stats.min
+            min = self.stats.min
+            offset = 0.0
+        else:
+            fullscale = 0.1
+            min = 0.0
+            scaleoffset = 0.0
 
         for i in range(points):
             if i>2:
@@ -303,9 +321,9 @@ class Main(object):
                 pygame.draw.line(   self.Surface,
                                     Colors.red,
                                  (  int(10+xscale*x1)-xoffset, 
-                                    int(1.0*Const.rH-yscale*0.1*np.log10(self.calibrate[i]*self.waveformy[i])+offset)),
+                                    int(1.0*Const.rH-(yscale*fullscale*(self.calibrate[i]*self.waveformy[i]-scaleoffset))+offset)),
                                  (  int(10+xscale*x2)-xoffset, 
-                                    int(1.0*Const.rH-yscale*0.1*np.log10(self.calibrate[i+1]*self.waveformy[i+1])+offset)),
+                                    int(1.0*Const.rH-(yscale*fullscale*(self.calibrate[i+1]*self.waveformy[i+1]-scaleoffset))+offset)),
                                     Const.linewidth)
         pygame.display.update()
 
@@ -461,10 +479,9 @@ class Main(object):
             if s == 'r':
                 break
 
-        stats = Stats(self.waveformy)
-        print stats.max
-        print stats.min
-        print stats.std
+        self.stats = Stats(Stats.bookkeepproduct(self.calibrate,self.waveformy))
+
+        self.plotsweep(i, True)
 
         if s=='':
             file = open('./tmp/sweep.dat', 'w')
