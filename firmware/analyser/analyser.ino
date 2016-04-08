@@ -226,7 +226,7 @@ void loop() {
         Serial.print(":");
         if(rms1.available()){
           float rms = rms1.read();
-          Serial.print(rms,4);
+          Serial.print(rms,6);
         }
         Serial.println();
       }
